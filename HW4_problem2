@@ -1,0 +1,34 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+alpha, beta = 1.0, 0.5
+eps0 = 2*alpha*beta**1.5
+qstar = np.array([np.arccos(beta), 0, 1/np.sqrt(beta)])
+t = np.linspace(0, 800, 16001)
+
+def f(t, q, eps):
+    x, y, z = q
+    return [y, np.sin(x)*(z*z*np.cos(x)-1)-eps*y,
+            alpha*(np.cos(x)-beta)]
+
+fig, ax = plt.subplots(1, 2, figsize=(10, 4))
+for factor, delta in [(1.1, 0.01), (0.9, 0.01), (0.9, 0.1)]:
+    eps = factor*eps0
+    sol = solve_ivp(f, (0, 800), qstar+[delta, 0, 0],
+                    args=(eps,), t_eval=t, rtol=1e-9, atol=1e-11)
+    label = f"eps/eps0={factor}, perturbation={delta}"
+    error = np.linalg.norm(sol.y-qstar[:, None], axis=0)
+    ax[0].semilogy(t, error, label=label)
+
+    keep = t >= 700
+    ax[1].plot(sol.y[0, keep], sol.y[1, keep], label=label)
+    print(label, "final x range:", np.ptp(sol.y[0, keep]))
+
+ax[0].set(xlabel="t", ylabel="Distance from equilibrium")
+ax[1].plot(qstar[0], 0, "ko")
+ax[1].set(xlabel="x", ylabel="y", title="After discarding transients")
+ax[0].legend(fontsize=8)
+fig.tight_layout()
+fig.savefig("governor_hopf.png", dpi=200)
+plt.show()
